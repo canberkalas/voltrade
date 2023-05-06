@@ -18,6 +18,7 @@ exchange = ccxt.binance({
     'apiKey': YUuY0Ru2AAHDUI2K7Kl65PLD2YBIOADeaNC50LmvrCOO7ZLyjEIBU2Fhg8e7qz56,
     'secret': 'your_secret_key',
     'enableRateLimit': True,
+)}
 
 symbol = 'BTC/USDT'
 amount = 50
