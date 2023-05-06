@@ -15,7 +15,7 @@ import ta.momentum
 from talib import STOCHRSI
 
 exchange = ccxt.binance({
-    'apiKey': YUuY0Ru2AAHDUI2K7Kl65PLD2YBIOADeaNC50LmvrCOO7ZLyjEIBU2Fhg8e7qz56,
+    'apiKey': api_key,
     'secret': 'your_secret_key',
     'enableRateLimit': True,
 )}
