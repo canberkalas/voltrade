@@ -1,4 +1,5 @@
-# voltrade SRSIbot-python ile binance api kullanarak futures işlemlerde 5x kaldıraç ile işlem yapıyor,Stoch RSI 80 üzerinde iken, K çizgisi D yi aşşağı keser ise short pozisyon, Stoch RSI değeri 20 altında iken, K çizgisi D yi yukar yönlü keser ise long pozisyon açıyor.pozisyon %1.3 kara ulaştığında kapatıyor ve pozisyon %0.43 zarara ulaştığında pozisyonu kapatıyor.botun kullanıcı tarafından açılıp-kapatılması gerekiyor, açık olduğunda sürekli olarak bahsedilen doğru işlem noktasını kontrol ediyor.
+# voltrade SRSIbot
+#python ile binance api kullanarak futures işlemlerde 5x kaldıraç ile işlem yapıyor,Stoch RSI 80 üzerinde iken, K çizgisi D yi aşşağı keser ise short pozisyon, Stoch RSI değeri 20 altında iken, K çizgisi D yi yukar yönlü keser ise long pozisyon açıyor.pozisyon %1.3 kara ulaştığında kapatıyor ve pozisyon %0.43 zarara ulaştığında pozisyonu kapatıyor.botun kullanıcı tarafından açılıp-kapatılması gerekiyor, açık olduğunda sürekli olarak bahsedilen doğru işlem noktasını kontrol ediyor.
 
 Bu kod gerçek para ile çalışacak şekilde tasarlanmıştır, bu nedenle önce bir sanal para hesabı oluşturmanızı ve bu hesabı kullanarak botunuzu test etmenizi öneririz.
 
