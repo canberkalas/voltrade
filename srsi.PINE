@@ -1,0 +1,37 @@
+
+//@version=4
+strategy("Stoch RSI Strategy", overlay=true)
+
+// Stoch RSI settings
+length = input(title="Length", type=input.integer, defval=14)
+smoothK = input(title="SmoothK", type=input.integer, defval=3)
+smoothD = input(title="SmoothD", type=input.integer, defval=3)
+
+// Take profit and stop loss levels
+tp = input(title="Take Profit (%)", type=input.float, defval=1.3)/100
+sl = input(title="Stop Loss (%)", type=input.float, defval=0.43)/100
+
+// Calculate Stoch RSI
+rsi1 = rsi(close, length)
+minrsi1 = lowest(rsi1, smoothK)
+maxrsi1 = highest(rsi1, smoothK)
+stochrsi = (rsi1 - minrsi1) / (maxrsi1 - minrsi1) * 100
+K = ema(stochrsi, smoothK)
+D = ema(K, smoothD)
+
+// Define long and short signals
+longSignal = (stochrsi < 20) and crossover(K, D)
+shortSignal = (stochrsi > 80) and crossunder(K, D)
+
+// Execute trades
+if (longSignal)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("TP/SL", "Long", profit=tp, loss=sl)
+if (shortSignal)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("TP/SL", "Short", profit=tp, loss=sl)
+// Long sinyali için
+plotchar(longSignal, "Long", "▲", location = location.belowbar, color = color.green, size = size.small)
+
+// Short sinyali için
+plotchar(shortSignal, "Short", "▼", location = location.abovebar, color = color.red, size = size.small)
