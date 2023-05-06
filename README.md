@@ -1,0 +1,2 @@
+# voltrade
+stochRSI str
