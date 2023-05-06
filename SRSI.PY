@@ -1,84 +1,121 @@
-import time
 from binance.client import Client
-from binance.enums import *
-import talib
+import ta
+import numpy as np
+import time
+import requests
+import json
+import time
+import hmac
+import hashlib
+import urllib.parse
+import pandas as pd
+import numpy as np
+import ccxt
+import ta.momentum
+from talib import STOCHRSI
 
-# API anahtarlarınızı girin
 api_key = 'YOUR_API_KEY'
-api_secret = 'YOUR_API_SECRET'
+api_secret = 'YOUR_SECRET_KEY'
+exchange = ccxt.binance({
+    'apiKey': 'your_api_key',
+    'secret': 'your_secret_key',
+    'enableRateLimit': True,
 
-# Bağlantıyı başlatın
-client = Client(api_key, api_secret, tld='com')
+symbol = 'BTC/USDT'
+amount = 50
+leverage = 5
+order_type = 'market'
 
-def get_stochrsi(pair, interval, stoch_length, rsi_length, k, d):
-    """Stochastic RSI hesaplaması"""
-    klines = client.futures_klines(symbol=pair, interval=interval, limit=stoch_length+rsi_length)
+exchange.futures_create_order(symbol, order_type, 'buy', amount, {'leverage': leverage})
 
-    closes = [float(x[4]) for x in klines]
-    rsi = talib.RSI(np.array(closes), timeperiod=rsi_length)
-    stochrsi = talib.STOCHRSI(np.array(closes), timeperiod=stoch_length, fastk_period=k, fastd_period=d)
+client = Client(api_key, api_secret)
 
-    return rsi, stochrsi
+period = 11
+smooth_k = 2
+smooth_d = 2
 
-def check_entry_exit(pair, interval, stoch_length, rsi_length, k, d, leverage, position_size, stop_loss, take_profit):
-    """Stratejiyi uygula"""
+def get_last_price():
+     #Mevcut fiyat bilgisini alırMevcut fiyat bilgisini alır
+ticker = exchange.fetch_ticker(symbol)
+return ticker['last']
 
-    # Pozisyonu kontrol et
-    positions = client.futures_position_information(symbol=pair)
-    for p in positions:
-        if p['symbol'] == pair:
-            if float(p['positionAmt']) > 0:
-                # Long pozisyon
-                print('Long pozisyonu kontrol ediliyor.')
-                if float(p['unRealizedProfit']) / float(p['positionInitialMargin']) > take_profit:
-                    # Kar al
-                    print('Kar al.')
-                    client.futures_create_order(symbol=pair, side=SIDE_SELL, type=ORDER_TYPE_MARKET, quantity=abs(float(p['positionAmt'])))
-                    return
-                elif float(p['unRealizedProfit']) / float(p['positionInitialMargin']) < stop_loss:
-                    # Zarar durdur
-                    print('Zarar durdur.')
-                    client.futures_create_order(symbol=pair, side=SIDE_SELL, type=ORDER_TYPE_MARKET, quantity=abs(float(p['positionAmt'])))
-                    return
-            elif float(p['positionAmt']) < 0:
-                # Short pozisyon
-                print('Short pozisyonu kontrol ediliyor.')
-                if float(p['unRealizedProfit']) / float(p['positionInitialMargin']) > take_profit:
-                    # Kar al
-                    print('Kar al.')
-                    client.futures_create_order(symbol=pair, side=SIDE_BUY, type=ORDER_TYPE_MARKET, quantity=abs(float(p['positionAmt'])))
-                    return
-                elif float(p['unRealizedProfit']) / float(p['positionInitialMargin']) < stop_loss:
-                    # Zarar durdur
-                    print('Zarar durdur.')
-                    client.futures_create_order(symbol=pair, side=SIDE_BUY, type=ORDER_TYPE_MARKET, quantity=abs(float(p['positionAmt'])))
-                    return
+def get_open_positions():
+#Mevcut açık pozisyonları alır
+positions = exchange.futures_private_get_positionrisk({'symbol': symbol})
+return positions
 
-   # Stochastic RSI'ı kontrol et
-def check_stoch_rsi(symbol):
-    # Kline verilerini al
-    klines = client.futures_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_1HOUR)
+def open_long_position(last_price):
+#Uzun pozisyon açar
+stop_loss = last_price * 0.98
+take_profit = last_price * 1.02
+exchange.futures_create_order(symbol, 'market', 'buy', amount, {'stopPrice': stop_loss, 'reduceOnly': False, 'takeProfitPrice': take_profit})
 
-    # Son 14 kapanış fiyatını al
-    closes = [float(entry[4]) for entry in klines[-14:]]
+def open_short_position(last_price):
+#Kısa pozisyon açar
+stop_loss = last_price * 1.02
+take_profit = last_price * 0.98
+exchange.futures_create_order(symbol, 'market', 'sell', amount, {'stopPrice': stop_loss, 'reduceOnly': False, 'takeProfitPrice': take_profit})
 
-    # Stochastic RSI hesapla
-    rsi = ta.momentum.StochRSIIndicator(np.array(closes)).stochrsi()
+def close_position(position_id):
+#Pozisyonu kapatır
+exchange.futures_create_order(symbol, 'market', 'buy' if position['positionAmt'] < 0 else 'sell', abs(position['positionAmt']), {'reduceOnly': True})
 
-    # Son RSI değerini al
-    current_rsi = rsi[-1]
+def check_trade_signals():
+#Fiyat bilgisini alıyoruz
+klines = client.futures_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=period+1)
+closes = np.array([float(kline[4]) for kline in klines])
 
-    # Kline verilerini al
-    klines = client.futures_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_15MINUTE)
+#Stoch RSI indikatörünü hesaplıyoruz
+stoch_rsi = ta.momentum.StochRSIIndicator(closes, window=period, smooth_k=smooth_k, smooth_d=smooth_d)
+k = stoch_rsi.stochrsi_k()
+d = stoch_rsi.stochrsi_d()
 
-    # Son kapanış fiyatını al
-    current_price = float(klines[-1][4])
+#K çizgisini ve D çizgisini hesaplayın
+k_line, d_line = stoch_rsi()
 
-    # K ve D çizgisini hesapla
-    fastk, fastd = ta.momentum.StochasticOscillator(high=np.array([float(entry[2]) for entry in klines]),
-                                                    low=np.array([float(entry[3]) for entry in klines]),
-                                                    close=np.array([float(entry[4]) for entry in klines])).stoch()
-    # Son K ve D değerlerini al
-    current_k, current_d = fastk[-1], fastd[-1]
+#En son fiyatı alın
+last_price = get_last_price()
 
-    return current_price, current_rsi, current_k, current_d
+#Mevcut pozisyonları kontrol edin
+open_positions = get_open_positions()
+
+#Stoch RSI değeri 80'in üzerinde ve K çizgisi D çizgisinin altına düştüyse kısa pozisyon açın
+if k_line[-1] < d_line[-1] and k_line[-2] >= d_line[-2] and k_line[-1] > 80:
+    if "short" not in open_positions:
+        open_short_position(last_price)
+
+#Stoch RSI değeri 20'nin altında ve K çizgisi D çizgisinin üstüne çıktığında uzun pozisyon açın
+elif k_line[-1] > d_line[-1] and k_line[-2] <= d_line[-2] and k_line[-1] < 20:
+    if "long" not in open_positions:
+        open_long_position(last_price)
+
+#Mevcut pozisyonları kapatın
+for position in open_positions:
+    position_type = position["position_type"]
+    position_price = position["entry_price"]
+    position_size = position["size"]
+    position_stop_loss = position["stop_loss"]
+    position_take_profit = position["take_profit"]
+    position_id = position["position_id"]
+    
+    # Kar al seviyesine ulaşıldıysa pozisyonu kapat
+    if last_price >= position_take_profit and position_type == "long":
+        close_position(position_id)
+    elif last_price <= position_take_profit and position_type == "short":
+        close_position(position_id)
+        
+    # Stop loss seviyesine ulaşıldıysa pozisyonu kapat
+    elif last_price <= position_stop_loss and position_type == "long":
+        close_position(position_id)
+    elif last_price >= position_stop_loss and position_type == "short":
+        close_position(position_id)
+
+#Açık pozisyonları kontrol edin
+open_positions = exchange.futures_private_get_positionrisk({'symbol': symbol})
+
+for position in open_positions:
+    if position['positionAmt'] > 0 and float(position['unRealizedProfit']) > amount * 0.013:
+        exchange.futures_create_order(symbol, 'market', 'sell', position['positionAmt'], {'reduceOnly': True})
+    
+    if position['positionAmt'] > 0 and float(position['unRealizedProfit']) < -amount * 0.0043:
+        exchange.futures_create_order(symbol, 'market', 'sell', position['positionAmt'], {'reduceOnly': True})
