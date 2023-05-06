@@ -14,10 +14,8 @@ import ccxt
 import ta.momentum
 from talib import STOCHRSI
 
-api_key = 'YOUR_API_KEY'
-api_secret = 'YOUR_SECRET_KEY'
 exchange = ccxt.binance({
-    'apiKey': 'your_api_key',
+    'apiKey': YUuY0Ru2AAHDUI2K7Kl65PLD2YBIOADeaNC50LmvrCOO7ZLyjEIBU2Fhg8e7qz56,
     'secret': 'your_secret_key',
     'enableRateLimit': True,
 
@@ -27,6 +25,7 @@ leverage = 5
 order_type = 'market'
 
 exchange.futures_create_order(symbol, order_type, 'buy', amount, {'leverage': leverage})
+exchange.futures_create_order(symbol, order_type, 'sell', amount, {'leverage': leverage})
 
 client = Client(api_key, api_secret)
 
@@ -35,7 +34,7 @@ smooth_k = 2
 smooth_d = 2
 
 def get_last_price():
-     #Mevcut fiyat bilgisini alırMevcut fiyat bilgisini alır
+#Mevcut fiyat bilgisini alırMevcut fiyat bilgisini alır
 ticker = exchange.fetch_ticker(symbol)
 return ticker['last']
 
